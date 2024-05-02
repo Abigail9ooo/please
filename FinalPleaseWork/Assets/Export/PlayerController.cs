@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
@@ -11,23 +10,10 @@ public class PlayerController : MonoBehaviour
     public Animator animator; // Animator for handling animations
     public float attackDamage = 25f; // Damage output of the sword
     public float attackRange = 2f; // Range of the sword attack
+    public LayerMask enemyLayer; // Layer on which enemy objects are placed
 
     [Header("Health Settings")]
     [SerializeField] private float health = 100f; // Player's health
-
-    public float Health // Property to access and modify player's health
-    {
-        get { return health; }
-        set
-        {
-            health = value;
-            Debug.Log($"Health: {health}");
-            if (health <= 0)
-            {
-                Die();
-            }
-        }
-    }
 
     void Update()
     {
@@ -41,50 +27,47 @@ public class PlayerController : MonoBehaviour
         float vertical = Input.GetAxis("Vertical");
         Vector3 movement = new Vector3(horizontal, 0, vertical) * speed * Time.deltaTime;
         transform.Translate(movement, Space.World);
-
-        if (movement != Vector3.zero)
-        {
-            Quaternion toRotation = Quaternion.LookRotation(movement, Vector3.up);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, 360 * Time.deltaTime);
-        }
     }
 
     private void HandleAttack()
     {
         if (Input.GetMouseButtonDown(0)) // Left mouse button for attack
         {
-            if (animator != null)
-            {
-                animator.SetTrigger("Attack"); // Ensure there is an "Attack" trigger set in your Animator
-            }
-
-            Attack();
+            animator.SetTrigger("Attack");
+            PerformAttack();
         }
     }
 
-    private void Attack()
+    void PerformAttack()
     {
-        // Detect enemies within range of the attack
-        RaycastHit[] hits = Physics.SphereCastAll(transform.position, attackRange, transform.forward, 0f);
-        foreach (RaycastHit hit in hits)
+        // Perform a raycast or sphere cast to detect enemies
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position, transform.forward, out hit, attackRange, enemyLayer))
         {
-            if (hit.collider.gameObject.CompareTag("Enemy"))
+            if (hit.collider != null && hit.collider.gameObject.CompareTag("Enemy"))
             {
-                // Assuming enemies have an EnemyHealth script
-                hit.collider.gameObject.GetComponent<EnemyHealth>().TakeDamage(attackDamage);
+                // Assuming the enemy has a script called 'EnemyHealth' that manages health
+                EnemyHealth enemyHealth = hit.collider.GetComponent<EnemyHealth>();
+                if (enemyHealth != null)
+                {
+                    enemyHealth.TakeDamage(attackDamage);
+                }
             }
         }
     }
 
     public void TakeDamage(float damage)
     {
-        Health -= damage; // Adjust health and check for death in the setter
+        health -= damage;
+        if (health <= 0)
+        {
+            Die();
+        }
     }
 
     private void Die()
     {
         Debug.Log("Player Died!");
-        // Example: Restart the current scene
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        // Add logic for player death, such as restarting the level or showing a game over screen
     }
 }
